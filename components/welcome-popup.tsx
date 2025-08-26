@@ -9,18 +9,22 @@ export function WelcomePopup() {
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem("imgxpress-welcome-seen")
-    if (!hasSeenWelcome) {
-      const timer = setTimeout(() => {
-        setIsOpen(true)
-      }, 1000)
-      return () => clearTimeout(timer)
+    if (typeof window !== 'undefined') {
+      const hasSeenWelcome = localStorage.getItem("imgxpress-welcome-seen")
+      if (!hasSeenWelcome) {
+        const timer = setTimeout(() => {
+          setIsOpen(true)
+        }, 1000)
+        return () => clearTimeout(timer)
+      }
     }
   }, [])
 
   const handleClose = () => {
     setIsOpen(false)
-    localStorage.setItem("imgxpress-welcome-seen", "true")
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("imgxpress-welcome-seen", "true")
+    }
   }
 
   if (!isOpen) return null

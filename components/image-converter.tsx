@@ -135,14 +135,17 @@ export function ImageConverter({ defaultFormat }: ImageConverterProps) {
       filename: conversionResult.filename,
     })
 
-    const url = URL.createObjectURL(conversionResult.blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = conversionResult.filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Only execute on client side
+    if (typeof window !== 'undefined') {
+      const url = URL.createObjectURL(conversionResult.blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = conversionResult.filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
   }
 
   const formatFileSize = (bytes: number) => {

@@ -16,12 +16,20 @@ export interface ConversionResult {
 }
 
 export class ImageConverter {
-  private canvas: HTMLCanvasElement
-  private ctx: CanvasRenderingContext2D
+  private canvas: HTMLCanvasElement | null = null
+  private ctx: CanvasRenderingContext2D | null = null
 
-  constructor() {
-    this.canvas = document.createElement("canvas")
-    this.ctx = this.canvas.getContext("2d")!
+  private getCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+    if (typeof window === 'undefined') {
+      throw new Error('Canvas is not available during server-side rendering')
+    }
+    
+    if (!this.canvas) {
+      this.canvas = document.createElement("canvas")
+      this.ctx = this.canvas.getContext("2d")!
+    }
+    
+    return { canvas: this.canvas, ctx: this.ctx! }
   }
 
   async convertImage(
@@ -49,12 +57,13 @@ export class ImageConverter {
     )
 
     // Set canvas size
-    this.canvas.width = canvasWidth
-    this.canvas.height = canvasHeight
+    const { canvas, ctx } = this.getCanvas()
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
 
     // Clear canvas and draw image
-    this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-    this.ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+    ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
 
     // Convert to target format
     const mimeType = this.getMimeType(targetFormat)
@@ -134,7 +143,8 @@ export class ImageConverter {
 
   private async canvasToBlob(mimeType: string, quality: number): Promise<Blob> {
     return new Promise((resolve, reject) => {
-      this.canvas.toBlob(
+      const { canvas } = this.getCanvas()
+      canvas.toBlob(
         (blob) => {
           if (blob) {
             resolve(blob)
