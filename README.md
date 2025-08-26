@@ -187,7 +187,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Ladin Fazal**
 - Email: [ladinawan4@gmail.com](mailto:ladinawan4@gmail.com)
-- GitHub: [@yourusername](https://github.com/yourusername)
+- GitHub: [@yourusername](https://github.com/Ladinawan-01)
 
 ## 🙏 Acknowledgments
 
