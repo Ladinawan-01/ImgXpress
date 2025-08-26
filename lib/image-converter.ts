@@ -165,8 +165,7 @@ export class ImageConverter {
 
     // Create a simple PDF with the image
     // Note: This is a simplified implementation
-    const canvas = document.createElement("canvas")
-    const ctx = canvas.getContext("2d")!
+    const { canvas, ctx } = this.getCanvas()
 
     canvas.width = img.width
     canvas.height = img.height
