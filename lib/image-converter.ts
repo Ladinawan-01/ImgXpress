@@ -50,7 +50,14 @@ export class ImageConverter {
 
     // Handle PDF conversion separately
     if (targetFormat === "pdf") {
-      return this.convertToPDF([file], options)
+      const result = await this.convertToPDF([file], options)
+      return {
+        blob: result.blob,
+        filename: result.filename,
+        originalSize: result.totalOriginalSize,
+        convertedSize: result.convertedSize,
+        format: result.format,
+      }
     }
 
     // Load image
@@ -98,17 +105,59 @@ export class ImageConverter {
       return this.convertToPDF(files, options)
     }
 
-    // For other formats, we'll convert them individually and zip them
-    // For now, let's just convert the first image as a placeholder
-    const result = await this.convertImage(files[0], targetFormat, options)
+    // For other formats, convert each image individually
+    const convertedResults: { blob: Blob; filename: string }[] = []
+    let totalOriginalSize = 0
+
+    for (const file of files) {
+      try {
+        const result = await this.convertImage(file, targetFormat, options)
+        convertedResults.push({
+          blob: result.blob,
+          filename: result.filename
+        })
+        totalOriginalSize += result.originalSize
+      } catch (error) {
+        console.error(`Error converting ${file.name}:`, error)
+        // Continue with other images
+      }
+    }
+
+    if (convertedResults.length === 0) {
+      throw new Error("No images were successfully converted")
+    }
+
+    // If only one image was converted successfully, return it directly
+    if (convertedResults.length === 1) {
+      return {
+        blob: convertedResults[0].blob,
+        filename: convertedResults[0].filename,
+        totalOriginalSize,
+        convertedSize: convertedResults[0].blob.size,
+        format: targetFormat,
+        imageCount: 1,
+      }
+    }
+
+    // For multiple images, create a zip file
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+
+    // Add each converted image to the zip
+    convertedResults.forEach((result, index) => {
+      zip.file(result.filename, result.blob)
+    })
+
+    const zipBlob = await zip.generateAsync({ type: "blob" })
+    const filename = `converted_images.zip`
     
     return {
-      blob: result.blob,
-      filename: `converted_images.${targetFormat}`,
-      totalOriginalSize: files.reduce((sum, file) => sum + file.size, 0),
-      convertedSize: result.convertedSize,
+      blob: zipBlob,
+      filename,
+      totalOriginalSize,
+      convertedSize: zipBlob.size,
       format: targetFormat,
-      imageCount: files.length,
+      imageCount: convertedResults.length,
     }
   }
 

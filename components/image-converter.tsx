@@ -292,11 +292,14 @@ export function ImageConverter({ defaultFormat }: ImageConverterProps) {
               </SelectContent>
             </Select>
 
-            {targetFormat === "pdf" && selectedFiles.length > 1 && (
+            {selectedFiles.length > 1 && (
               <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   <FileText className="h-4 w-4 inline mr-1" />
-                  Multiple images will be combined into a single PDF with each image on a separate page.
+                  {targetFormat === "pdf" 
+                    ? "Multiple images will be combined into a single PDF with each image on a separate page."
+                    : "Multiple images will be converted individually and downloaded as a ZIP file."
+                  }
                 </p>
               </div>
             )}
@@ -350,7 +353,7 @@ export function ImageConverter({ defaultFormat }: ImageConverterProps) {
 
             <Button onClick={handleDownload} className="w-full" size="lg">
               <Download className="h-4 w-4 mr-2" />
-              Download {conversionResult.format.toUpperCase()}
+              Download {conversionResult.filename.endsWith('.zip') ? 'ZIP File' : conversionResult.format.toUpperCase()}
             </Button>
           </CardContent>
         </Card>
