@@ -1,3 +1,4 @@
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import type React from "react"
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
@@ -51,6 +52,7 @@ export default function RootLayout({
           <Toaster />
           <WelcomePopup />
           <Analytics />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>

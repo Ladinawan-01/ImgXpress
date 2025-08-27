@@ -15,6 +15,15 @@ export interface ConversionResult {
   format: SupportedFormat
 }
 
+export interface MultipleImageConversionResult {
+  blob: Blob
+  filename: string
+  totalOriginalSize: number
+  convertedSize: number
+  format: SupportedFormat
+  imageCount: number
+}
+
 export class ImageConverter {
   private canvas: HTMLCanvasElement | null = null
   private ctx: CanvasRenderingContext2D | null = null
@@ -41,7 +50,7 @@ export class ImageConverter {
 
     // Handle PDF conversion separately
     if (targetFormat === "pdf") {
-      return this.convertToPDF(file, options)
+      return this.convertToPDF([file], options)
     }
 
     // Load image
@@ -77,6 +86,29 @@ export class ImageConverter {
       originalSize: file.size,
       convertedSize: blob.size,
       format: targetFormat,
+    }
+  }
+
+  async convertMultipleImages(
+    files: File[],
+    targetFormat: SupportedFormat,
+    options: ConversionOptions = {},
+  ): Promise<MultipleImageConversionResult> {
+    if (targetFormat === "pdf") {
+      return this.convertToPDF(files, options)
+    }
+
+    // For other formats, we'll convert them individually and zip them
+    // For now, let's just convert the first image as a placeholder
+    const result = await this.convertImage(files[0], targetFormat, options)
+    
+    return {
+      blob: result.blob,
+      filename: `converted_images.${targetFormat}`,
+      totalOriginalSize: files.reduce((sum, file) => sum + file.size, 0),
+      convertedSize: result.convertedSize,
+      format: targetFormat,
+      imageCount: files.length,
     }
   }
 
@@ -158,34 +190,73 @@ export class ImageConverter {
     })
   }
 
-  private async convertToPDF(file: File, options: ConversionOptions): Promise<ConversionResult> {
-    // For PDF conversion, we'll use a simple approach with jsPDF
-    // This is a basic implementation - in production, you might want to use a more robust solution
-    const img = await this.loadImage(file)
+  private async convertToPDF(files: File[], options: ConversionOptions): Promise<MultipleImageConversionResult> {
+    // Dynamic import to avoid SSR issues
+    const { jsPDF } = await import('jspdf')
+    
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 10
+    const maxWidth = pageWidth - (2 * margin)
+    const maxHeight = pageHeight - (2 * margin)
 
-    // Create a simple PDF with the image
-    // Note: This is a simplified implementation
-    const { canvas, ctx } = this.getCanvas()
+    let totalOriginalSize = 0
 
-    canvas.width = img.width
-    canvas.height = img.height
-    ctx.drawImage(img, 0, 0)
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      totalOriginalSize += file.size
 
-    const imageData = canvas.toDataURL("image/jpeg", 0.9)
+      try {
+        const img = await this.loadImage(file)
+        
+        // Calculate image dimensions to fit on page
+        const imgAspectRatio = img.width / img.height
+        let imgWidth = maxWidth
+        let imgHeight = maxWidth / imgAspectRatio
 
-    // Create a simple PDF blob (this is a mock implementation)
-    // In a real app, you'd use a proper PDF library
-    const pdfContent = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\nxref\n0 4\n0000000000 65535 f \n0000000010 00000 n \n0000000053 00000 n \n0000000125 00000 n \ntrailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n213\n%%EOF`
+        if (imgHeight > maxHeight) {
+          imgHeight = maxHeight
+          imgWidth = maxHeight * imgAspectRatio
+        }
 
-    const blob = new Blob([pdfContent], { type: "application/pdf" })
-    const filename = this.generateFilename(file.name, "pdf")
+        // Center the image on the page
+        const x = margin + (maxWidth - imgWidth) / 2
+        const y = margin + (maxHeight - imgHeight) / 2
+
+        // Convert image to data URL
+        const { canvas, ctx } = this.getCanvas()
+        canvas.width = img.width
+        canvas.height = img.height
+        ctx.drawImage(img, 0, 0)
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.9)
+
+        // Add image to PDF
+        pdf.addImage(imageData, 'JPEG', x, y, imgWidth, imgHeight)
+
+        // Add new page if not the last image
+        if (i < files.length - 1) {
+          pdf.addPage()
+        }
+      } catch (error) {
+        console.error(`Error processing image ${file.name}:`, error)
+        // Continue with other images
+      }
+    }
+
+    const pdfBlob = pdf.output('blob')
+    const filename = files.length === 1 
+      ? this.generateFilename(files[0].name, "pdf")
+      : `images_to_pdf.pdf`
 
     return {
-      blob,
+      blob: pdfBlob,
       filename,
-      originalSize: file.size,
-      convertedSize: blob.size,
+      totalOriginalSize,
+      convertedSize: pdfBlob.size,
       format: "pdf",
+      imageCount: files.length,
     }
   }
 
